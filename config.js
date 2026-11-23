@@ -1,5 +1,4 @@
-// Dán thông tin Firebase của bạn vào đây.
-// Giữ nguyên dòng đầu và dòng cuối, chỉ thay các dòng ở giữa.
+// Cấu hình Firebase của app so-thu-chi.
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyAxR0k-C-a4zCnN8AIfSgEOO_S04SQ-CZg",
   authDomain: "so-thu-chi-f4790.firebaseapp.com",
