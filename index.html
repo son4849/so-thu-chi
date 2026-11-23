@@ -419,7 +419,7 @@ async function runAi(text){
   if(!text){toast("Hãy gõ hoặc nói nội dung trước (dùng biểu tượng micro trên bàn phím iPhone).");return}
   S.toast="✨ Đang phân tích…";render();
   let items,src="ai",note="";
-  try{items=await aiParse(text)}catch(e){src="local";note=" (AI chưa dùng được"+(e&&(e.code||e.message)?": "+String(e.code||e.message).slice(0,90):"")+", app dùng cách đoán đơn giản)";items=localParse(text)}
+  try{items=await aiParse(text)}catch(e){src="local";note=" (AI chưa dùng được"+(e&&(e.code||e.message)?": "+String((e.code?e.code+" - ":"")+(e.message||"")).slice(0,400):"")+", app dùng cách đoán đơn giản)";items=localParse(text)}
   S.toast="";render();
   if(!items.length){toast("Chưa nhận ra khoản nào. Hãy thử ghi kiểu: cà phê 20k, đổ xăng 50k."+note);return}
   const res=await reviewSheet(items,src,note);if(!res)return;
