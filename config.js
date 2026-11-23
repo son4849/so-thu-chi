@@ -10,6 +10,6 @@ window.FIREBASE_CONFIG = {
 
 // App Check (Fraud Defense / reCAPTCHA Enterprise): dán SITE KEY vào giữa hai dấu ngoặc kép.
 // Để trống nếu chưa làm App Check.
-window.APPCHECK_SITE_KEY = "6LcCsy4uAAAAABtvCj6qmwxqpNSVmqFx2pJoxFc9";
+window.APPCHECK_SITE_KEY = "";
 // "enterprise" = Fraud Defense (khuyên dùng). Chỉ đổi thành "v3" nếu bạn dùng key reCAPTCHA v3 kiểu cũ.
 window.APPCHECK_TYPE = "enterprise";

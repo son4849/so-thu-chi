@@ -117,6 +117,14 @@ const JARS=[["NEC","Thiết yếu","🏠","#2f80ed",55],["LTS","Dự phòng","�
 const DEF={1:"NEC",4:"NEC",3:"NEC",2:"NEC",18:"NEC",6:"NEC",8:"NEC",21:"NEC",24:"NEC",7:"EDU",9:"PLAY",10:"PLAY",11:"PLAY",19:"PLAY",23:"PLAY",5:"GIVE",20:"GIVE",25:"FFA"};
 const PRESETS=[["💍","Quỹ cưới"],["🚗","Mua xe"],["🏠","Xây nhà"],["🛡️","Dự phòng khẩn cấp"],["✈️","Du lịch"],["🎯",""]];
 const CAT=Object.fromEntries(CATS.map(c=>[c[0],{id:c[0],n:c[1],t:c[2],col:c[3]}]));
+const CATS0=CATS.map(c=>c.slice()),ICON0={...ICON};
+const DEFCATS=()=>CATS0.map(c=>({id:c[0],n:c[1],t:c[2],col:c[3],i:ICON0[c[0]]||"•"}));
+const vis=c=>CATS.some(x=>x[0]===c);
+function applyCats(){
+  const l=(S.cfg&&Array.isArray(S.cfg.cats)&&S.cfg.cats.length)?S.cfg.cats:DEFCATS();
+  CATS.length=0;for(const k in ICON)delete ICON[k];for(const k in CAT)delete CAT[k];
+  l.forEach(c=>{ICON[c.id]=c.i||"•";CAT[c.id]={id:c.id,n:c.n,t:c.t,col:c.col};if(!c.h)CATS.push([c.id,c.n,c.t,c.col])})
+}
 const $=s=>document.querySelector(s),pad=n=>String(n).padStart(2,"0");
 const fmt=n=>Math.round(n).toLocaleString("en-US")+"đ";
 const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
@@ -147,7 +155,7 @@ function init(){
         const n=Object.values(m).reduce((a,b)=>a+b.length,0);
         S.status=snap.metadata.hasPendingWrites?"Đang đồng bộ lên máy chủ…":(snap.metadata.fromCache&&!navigator.onLine)?"Đang offline · dữ liệu sẽ tự đồng bộ khi có mạng":"Đã đồng bộ online · "+n+" giao dịch";render()
       },e=>{S.status="Lỗi đồng bộ: "+(e.code||e.message);S.bad=true;render()}));
-      unsubs.push(onSnapshot(doc(db,"users",u.uid,"meta","cfg"),d=>{const c=d.data()||{};S.cfg={pct:c.pct||{},warn:c.warn||80,map:c.map||{},goals:(c.goals||[]).slice()};render()},()=>{}))
+      unsubs.push(onSnapshot(doc(db,"users",u.uid,"meta","cfg"),d=>{const c=d.data()||{};S.cfg={pct:c.pct||{},warn:c.warn||80,map:c.map||{},goals:(c.goals||[]).slice(),cats:Array.isArray(c.cats)?c.cats:null};applyCats();render()},()=>{}))
     }
     render()
   })
@@ -164,6 +172,7 @@ function saveMonth(ym){
   render()
 }
 function saveCfg(){
+  applyCats();
   if(db&&S.uid)setDoc(doc(db,"users",S.uid,"meta","cfg"),S.cfg).catch(e=>{S.status="Lưu cài đặt thất bại: "+(e.code||e.message);S.bad=true;render()});
   render()
 }
@@ -216,7 +225,7 @@ function vCal(){
 function resHtml(){const q=S.q.trim().toLowerCase();if(!q)return "";const n=parseAmt(q);
   const r=all().filter(x=>(x.m||"").toLowerCase().includes(q)||(CAT[x.c]?.n||"").toLowerCase().includes(q)||(n&&x.a===n)).sort((a,b)=>b.d.localeCompare(a.d)),e=sumBy(r,0),i=sumBy(r,1);
   return `<div class="tip">${r.length} kết quả · Chi ${fmt(e)}${i?" · Thu "+fmt(i):""}</div><div class="list">${r.slice(0,80).map(x=>`<div class="dh"><span>${x.d.split("-").reverse().join("/")}</span></div>`+rowHtml(x)).join("")||'<div class="empty">Không tìm thấy</div>'}</div>`}
-function quick(){const cut=iso(new Date(now-120*864e5)),m={};all().filter(x=>!x.t&&x.m&&x.d>=cut).forEach(x=>{const k=x.c+"|"+x.m,o=(m[k]??={c:x.c,m:x.m,n:0,a:0,d:""});o.n++;if(x.d>=o.d){o.d=x.d;o.a=x.a}});return Object.values(m).filter(o=>o.n>=2).sort((a,b)=>b.n-a.n).slice(0,8)}
+function quick(){const cut=iso(new Date(now-120*864e5)),m={};all().filter(x=>!x.t&&x.m&&x.d>=cut).forEach(x=>{const k=x.c+"|"+x.m,o=(m[k]??={c:x.c,m:x.m,n:0,a:0,d:""});o.n++;if(x.d>=o.d){o.d=x.d;o.a=x.a}});return Object.values(m).filter(o=>o.n>=2&&vis(o.c)).sort((a,b)=>b.n-a.n).slice(0,8)}
 function pv(){
   const f=S.form,a=parseAmt(f.a);if(!a)return "";
   if(f.t===1)return `<div class="pv">= ${fmt(a)} → tự chia vào hũ: ${JARS.map(j=>j[2]+" "+fmt(a*pctOf(j[0])/100)).join(" · ")}</div>`;
@@ -237,6 +246,7 @@ function vAdd(){
   <div class="fa"><input id="fm" list="dl" placeholder="Ghi chú (không bắt buộc)" value="${esc(f.m)}" autocomplete="off"><datalist id="dl">${memos.map(m=>`<option value="${esc(m)}">`).join("")}</datalist></div>
   <div class="fa"><input type="date" id="fd" value="${f.d}"><button class="chip" data-dd="0">Nay</button><button class="chip" data-dd="1">Qua</button></div>
   <div class="k">${tiles}</div>
+  <div style="text-align:center;margin-top:6px"><button class="chip" data-a="cats">✏️ Sửa danh mục</button></div>
   <div class="fa" style="margin-top:8px"><button class="pri" data-a="save">${S.edit?"Lưu thay đổi":"Lưu"}</button>${S.edit?'<button class="pri dng" data-a="del">Xoá</button><button class="pri sec" data-a="cancel">Huỷ</button>':'<button class="pri sec" data-a="savemore">Lưu và nhập tiếp</button>'}</div>`
 }
 function vRep(){
@@ -276,6 +286,7 @@ function vMore(){
   <div class="f"><b>Tài khoản</b><p style="color:var(--mu);font-size:14px;margin:6px 0 10px">${esc(S.user?S.user.email:"")}</p><button class="pri sec" data-a="logout">Đăng xuất</button></div>
   <div class="f"><b>Sao lưu ra file</b><p style="color:var(--mu);font-size:14px;margin:6px 0 10px">Dữ liệu đã được lưu online và vẫn xem được khi mất mạng. Bạn nên tải thêm một bản CSV (${all().length} giao dịch) để cất vào iCloud Drive hoặc email.</p><button class="pri sec" data-a="export">Xuất file CSV</button></div>
   <div class="f"><b>Nhập từ file CSV</b><p style="color:var(--mu);font-size:14px;margin:6px 0 10px">Chọn file đã xuất từ app Sổ thu chi cũ hoặc từ trang này. Giao dịch trùng ngày, số tiền, mục và ghi chú sẽ được bỏ qua.</p><input type="file" id="imp" accept=".csv,text/csv"></div>
+  <div class="f"><b>Danh mục chi tiêu và thu nhập</b><p style="color:var(--mu);font-size:14px;margin:6px 0 10px">Thêm mục mới, đổi tên, đổi biểu tượng hoặc xoá các mục bạn không dùng.</p><button class="pri sec" data-a="cats">Quản lý danh mục</button></div>
   <div class="f"><b>Khi đổi điện thoại</b><p style="color:var(--mu);font-size:14px;margin:6px 0 0">Cài app lên máy mới, đăng nhập cùng email và mật khẩu, toàn bộ giao dịch, hũ và quỹ sẽ tự hiện đủ.</p></div>`
 }
 
@@ -344,9 +355,9 @@ async function importCsv(file){
 
 
 /* ---------- nhập nhanh bằng lời (AI + cách đoán dự phòng) ---------- */
-const KW=[[/xăng/,4],[/lương/,12],[/phụ cấp/,13],[/thưởng/,14],[/thuốc|khám|bệnh|viện/,6],[/cắt tóc|tóc/,18],[/tiền điện|điện|internet|wifi|tiền nhà|trọ|trả góp|lãi|hóa đơn|hoá đơn|icloud/,8],[/học|sách|khoá|khóa/,7],[/game|phim|giải trí|netflix/,23],[/du lịch|vé máy bay|khách sạn/,11],[/lì xì/,20],[/đám|cưới|hiếu|hỷ|mừng/,5],[/quần|áo|giày|dép/,3],[/gửi xe|sửa xe|vá xe|thay nhớt|nhớt/,21],[/cà phê|cafe|cơm|phở|bún|bánh|trà|nước|mì|ăn|uống|sáng|trưa|tối|chợ/,1]];
+const KW=[[/xăng|đổ dầu/,4],[/lương/,12],[/phụ cấp/,13],[/thưởng/,14],[/thuốc|khám|bệnh|viện/,6],[/cắt tóc|tóc/,18],[/tiền điện|điện|internet|wifi|tiền nhà|trọ|trả góp|lãi|hóa đơn|hoá đơn|icloud|tiền nước|tiền net|nạp tiền|nạp thẻ|điện thoại|4g/,8],[/học|sách|khoá|khóa/,7],[/game|phim|giải trí|netflix/,23],[/du lịch|vé máy bay|khách sạn/,11],[/lì xì/,20],[/đám|cưới|hiếu|hỷ|mừng/,5],[/quần|áo|giày|dép/,3],[/gửi xe|sửa xe|vá xe|thay nhớt|nhớt/,21],[/cà phê|cafe|cơm|phở|bún|bánh|trà|nước|mì|ăn|uống|sáng|trưa|tối|chợ|trà sữa|bia|nhậu|quán|đồ ăn|highlands|starbucks|cháo|lẩu|nướng/,1]];
 function habitMap(){const c={};all().forEach(x=>{const k=(x.m||"").toLowerCase().trim();if(k.length<2)return;((c[k]??={})[x.c]=(c[k][x.c]||0)+1)});const h={};for(const k in c){h[k]=+Object.entries(c[k]).sort((a,b)=>b[1]-a[1])[0][0]}return h}
-function guessCat(seg,H){const s=seg.toLowerCase();let best=null,bl=0;for(const k in H)if(s.includes(k)&&k.length>bl){bl=k.length;best=H[k]}if(best)return best;for(const[re,c]of KW)if(re.test(s))return c;return null}
+function guessCat(seg,H){const s=seg.toLowerCase();let best=null,bl=0;for(const k in H)if(s.includes(k)&&k.length>bl){bl=k.length;best=H[k]}if(best&&vis(best))return best;for(const c of CATS){const n=c[1].toLowerCase();if(n.length>=3&&s.includes(n))return c[0]}for(const[re,c]of KW)if(re.test(s)&&vis(c))return c;return null}
 const AMT=/(\d+)\s*(?:tr|triệu|củ)\s*(\d{1,2})(?!\d|k|\s?nghìn|\s?ngàn)|(\d[\d.,]*)\s*(tr|triệu|củ|k|nghìn|ngàn)?(?![a-zà-ỹ])/gi;
 function amtOf(m){if(m[1]!==undefined)return +m[1]*1e6+(m[2].length===1?+m[2]*1e5:+m[2]*1e4);return parseAmt(m[3]+(m[4]||""))}
 function localParse(text){
@@ -381,7 +392,7 @@ Thói quen của người dùng (ghi chú→danh mục), hãy ưu tiên theo đ�
 function aiNormalize(arr){
   const H=habitMap(),dd=iso(now);
   return (Array.isArray(arr)?arr:[]).map(x=>{let c=+x.categoryId;const a=Math.round(+x.amount),m=String(x.memo||"").trim();
-    if(!CAT[c])c=guessCat(m,H);
+    if(!vis(c))c=guessCat(m,H);
     return {d:/^\d{4}-\d{2}-\d{2}$/.test(x.date)?x.date:dd,a,m,c,t:c?CAT[c].t:(x.type===1?1:0)}}).filter(x=>x.a>0)
 }
 async function aiParse(text){
@@ -392,14 +403,14 @@ async function aiParse(text){
   const ai=I.getAI(app,{backend:new I.GoogleAIBackend()});
   const P=I.Schema,schema=P.array({items:P.object({properties:{memo:P.string(),amount:P.number(),categoryId:P.number(),type:P.number(),date:P.string()}})});
   let saved=null;try{saved=localStorage.getItem("aiModel")}catch(e){}
-  const models=[...new Set([saved,window.AI_MODEL,"gemini-3.5-flash-lite","gemini-3.5-flash","gemini-3.1-flash-lite"].filter(Boolean))];
+  const models=[...new Set([saved,window.AI_MODEL,"gemini-3.5-flash-lite","gemini-3.8-flash","gemini-3.1-flash-lite"].filter(Boolean))];
   let last;
   for(const name of models){
-    try{const model=I.getGenerativeModel(ai,{model:name,generationConfig:{responseMimeType:"application/json",responseSchema:schema,temperature:0}});
-      const r=await model.generateContent(aiPrompt(text));const arr=JSON.parse(r.response.text());
+    try{const model=I.getGenerativeModel(ai,{model:name,generationConfig:{responseMimeType:"application/json",responseSchema:schema}});
+      const r=await Promise.race([model.generateContent(aiPrompt(text)),new Promise((_,j)=>setTimeout(()=>j(new Error("Quá thời gian chờ AI")),25000))]);const arr=JSON.parse(r.response.text());
       try{localStorage.setItem("aiModel",name)}catch(e){}
       return aiNormalize(arr)
-    }catch(e){last=e}
+    }catch(e){last=e;if(/\[401\]|\[403\]|\[429\]|App Check|timeout|Quá thời gian/i.test(String(e&&e.message)))break}
   }
   throw last
 }
@@ -416,11 +427,19 @@ function reviewSheet(items,src,note){return new Promise(res=>{
   });
   draw();document.body.appendChild(o)
 })}
+const aiHint=e=>{const m=String((e&&e.message)||"");
+  if(/App Check/i.test(m))return "AI đang bị chặn bởi App Check";
+  if(/\[403\]|PERMISSION|has not been used|disabled/i.test(m))return "AI chưa được bật hoặc khoá API đang bị giới hạn";
+  if(/\[429\]|quota|exhausted/i.test(m))return "đã hết lượt AI miễn phí lúc này, thử lại sau";
+  if(/\[404\]|not found/i.test(m))return "tên model AI không còn dùng được";
+  if(!navigator.onLine||/Failed to fetch|network/i.test(m))return "không có mạng";
+  if(/Quá thời gian/.test(m))return "AI phản hồi quá chậm";
+  return String((e&&(e.code||m))||"lỗi không rõ").slice(0,120)};
 async function runAi(text){
   if(!text){toast("Hãy gõ hoặc nói nội dung trước (dùng biểu tượng micro trên bàn phím iPhone).");return}
   S.toast="✨ Đang phân tích…";render();
   let items,src="ai",note="";
-  try{items=await aiParse(text)}catch(e){src="local";note=" (AI chưa dùng được"+(e&&(e.code||e.message)?": "+String((e.code?e.code+" - ":"")+(e.message||"")).slice(0,400):"")+", app dùng cách đoán đơn giản)";items=localParse(text)}
+  try{items=await aiParse(text)}catch(e){src="local";note=" (AI chưa dùng được: "+aiHint(e)+". App tạm dùng cách đoán đơn giản)";items=localParse(text)}
   S.toast="";render();
   if(!items.length){toast("Chưa nhận ra khoản nào. Hãy thử ghi kiểu: cà phê 20k, đổ xăng 50k."+note);return}
   const res=await reviewSheet(items,src,note);if(!res)return;
@@ -433,6 +452,76 @@ async function runAi(text){
   toast((wn?(wn.q>100?"🚨 ":"⚠️ ")+warnTxt(wn)+" · ":"")+"✅ Đã lưu "+n+" khoản")
 }
 
+const PAL=["#ff8700","#ff54a8","#1638a7","#00b547","#00a0f5","#ffd500","#61e396","#ff4950","#09ceff","#990ba6","#f264ff","#4fd800"];
+const EMO=["🍜","☕","🛒","🚗","⛽","🏠","💡","📱","🎬","🎮","🐶","👶","💊","🎓","✈️","🎁","💄","🏋️","📚","💰","🎂","🧴","🚌","🔧"];
+const firstEmoji=v=>{v=String(v||"").trim();if(!v)return"";try{return[...new Intl.Segmenter().segment(v)][0].segment}catch(e){return Array.from(v)[0]}};
+function catSheet(){return new Promise(res=>{
+  const o=document.createElement("div");o.className="mo";o.style.alignItems="flex-end";document.body.appendChild(o);
+  let ty=0,ed=null,msg="";
+  const list=()=>(Array.isArray(S.cfg.cats)&&S.cfg.cats.length?S.cfg.cats:DEFCATS()).map(c=>({...c}));
+  const commit=l=>{S.cfg={...S.cfg,cats:l};saveCfg()};
+  const used=id=>all().filter(x=>x.c===id).length;
+  const box='<div class="mb" style="max-height:88vh;overflow:auto;width:min(480px,100%)">';
+  const draw=()=>{
+    const l=list();
+    if(ed){
+      o.innerHTML=box+`<p><b>${ed.id?"Sửa danh mục":"Thêm danh mục "+(ty?"thu nhập":"chi tiêu")}</b></p>
+      <div class="fa"><input data-k="n" placeholder="Tên danh mục" maxlength="24" value="${esc(ed.n)}"></div>
+      <div class="fa"><input data-k="i" placeholder="Emoji" value="${esc(ed.i)}" style="flex:none;width:90px;text-align:center;font-size:22px"><span style="color:var(--mu);font-size:12px">Gõ emoji hoặc chọn bên dưới</span></div>
+      <div class="chips" style="flex-wrap:wrap">${EMO.map(e=>`<button class="chip" data-k="emo" data-v="${e}">${e}</button>`).join("")}</div>
+      <div class="chips" style="flex-wrap:wrap">${PAL.map(c=>`<button class="chip" data-k="col" data-v="${c}" style="background:${c};width:34px;height:34px;padding:0;border:3px solid ${ed.col===c?"var(--tx)":"transparent"}"></button>`).join("")}</div>
+      ${ty===0?`<div class="fa"><select data-k="j" style="flex:1;height:40px;border:1px solid var(--ln);border-radius:10px;padding:0 8px;background:var(--card);font-size:16px">${JARS.map(j=>`<option value="${j[0]}"${ed.j===j[0]?" selected":""}>${j[2]} Tính vào hũ ${j[1]}</option>`).join("")}</select></div>`:""}
+      ${msg?`<small class="exp">${esc(msg)}</small>`:""}
+      <div class="mbt"><button class="pri sec" data-k="cancel">Huỷ</button><button class="pri" data-k="ok">Lưu</button></div></div>`;
+      return}
+    const vs=l.filter(c=>c.t===ty&&!c.h),hs=l.filter(c=>c.t===ty&&c.h);
+    const row=(c,btns)=>`<div class="row" style="cursor:default"><span class="ic" style="background:${c.col}33">${esc(c.i)}</span><div class="n">${esc(c.n)}</div>${btns}</div>`;
+    o.innerHTML=box+`<p><b>Quản lý danh mục</b></p>
+    <div class="seg"><button data-k="ty0" class="${ty===0?"on":""}">Chi tiêu</button><button data-k="ty1" class="${ty===1?"on":""}">Thu nhập</button></div>
+    <div class="list" style="margin-top:0">${vs.map(c=>row(c,`<button class="chip" data-k="edit" data-v="${c.id}">✏️</button><button class="chip" data-k="del" data-v="${c.id}">🗑️</button>`)).join("")||'<div class="tip">Chưa có mục nào.</div>'}</div>
+    ${hs.length?`<h2>Đã ẩn</h2><div class="list" style="margin-top:0">${hs.map(c=>row(c,`<button class="chip" data-k="res" data-v="${c.id}">Khôi phục</button>`)).join("")}</div>`:""}
+    ${msg?`<small class="exp">${esc(msg)}</small>`:""}
+    <button class="pri sec" data-k="add">+ Thêm danh mục ${ty?"thu nhập":"chi tiêu"}</button>
+    <div class="mbt"><button class="pri" data-k="done">Xong</button></div></div>`
+  };
+  o.addEventListener("input",e=>{const t=e.target;if(!ed)return;if(t.dataset.k==="n")ed.n=t.value;else if(t.dataset.k==="i")ed.i=t.value});
+  o.addEventListener("change",e=>{const t=e.target;if(ed&&t.dataset.k==="j")ed.j=t.value});
+  o.addEventListener("click",async e=>{
+    if(/^(INPUT|SELECT)$/.test(e.target.tagName))return;
+    const b=e.target.closest("[data-k]");if(!b)return;
+    const k=b.dataset.k,v=b.dataset.v,l=list();
+    if(k==="done"){o.remove();res();return}
+    else if(k==="ty0"||k==="ty1"){ty=+k.slice(2);msg=""}
+    else if(k==="add"){ed={id:null,n:"",i:"🏷️",col:PAL[Math.floor(Math.random()*PAL.length)],j:"NEC"};msg=""}
+    else if(k==="edit"){const c=l.find(x=>x.id===+v);if(c){ed={id:c.id,n:c.n,i:c.i,col:c.col,j:jarOf(c.id)};msg=""}}
+    else if(k==="emo"){ed.i=v}
+    else if(k==="col"){ed.col=v}
+    else if(k==="cancel"){ed=null;msg=""}
+    else if(k==="ok"){
+      const n=ed.n.trim();
+      if(!n)msg="Hãy nhập tên danh mục.";
+      else if(l.some(x=>x.t===ty&&!x.h&&x.id!==ed.id&&x.n.toLowerCase()===n.toLowerCase()))msg="Đã có mục trùng tên này.";
+      else{
+        const i=firstEmoji(ed.i)||"🏷️";let nl;
+        if(ed.id)nl=l.map(x=>x.id===ed.id?{...x,n,i,col:ed.col}:x);
+        else{const id=Math.max(100,...l.map(x=>x.id))+1;nl=[...l,{id,n,t:ty,col:ed.col,i}];ed.id=id}
+        if(ty===0)S.cfg={...S.cfg,map:{...S.cfg.map,[ed.id]:ed.j}};
+        commit(nl);ed=null;msg=""
+      }
+    }
+    else if(k==="del"){
+      const id=+v,c=l.find(x=>x.id===id),n=used(id);if(!c)return;
+      const okk=await ask(n?`Mục "${c.n}" đã có ${n} giao dịch nên sẽ được ẩn đi (lịch sử vẫn giữ nguyên, bạn có thể khôi phục sau). Tiếp tục?`:`Xoá mục "${c.n}"?`,"",false);
+      if(okk===null)return;
+      if(S.form.c===id)S.form.c=null;
+      commit(n?list().map(x=>x.id===id?{...x,h:1}:x):list().filter(x=>x.id!==id));
+      msg=n?"Đã ẩn mục "+c.n:"Đã xoá mục "+c.n
+    }
+    else if(k==="res"){commit(l.map(x=>x.id===+v?{...x,h:0}:x));msg=""}
+    draw()
+  });
+  draw()
+})}
 document.addEventListener("input",e=>{if(e.target.id==="ft"){S.aiText=e.target.value;return}if(e.target.id==="fq"){S.q=e.target.value;$("#res").innerHTML=resHtml();$("#cb").style.display=S.q.trim()?"none":"";return}
   if(e.target.id==="fa"||e.target.id==="fm"){readForm();$("#pv").innerHTML=pv()}});
 document.addEventListener("change",e=>{
@@ -457,6 +546,7 @@ document.addEventListener("click",async e=>{
   else if(D.gdep){const g=S.cfg.goals.find(x=>x.id===D.gdep),v=await ask("Nạp thêm bao nhiêu vào "+g.n+"? (số âm để rút)","");const neg=(v||"").trim().startsWith("-"),n=parseAmt((v||"").replace("-",""));if(n){S.cfg={...S.cfg,goals:S.cfg.goals.map(x=>x.id===g.id?{...x,s:Math.max(0,x.s+(neg?-n:n))}:x)};await saveCfg()}}
   else if(D.gt){const g=S.cfg.goals.find(x=>x.id===D.gt),n=parseAmt((await ask("Mục tiêu mới cho "+g.n,String(g.t)))||"");if(n){S.cfg={...S.cfg,goals:S.cfg.goals.map(x=>x.id===g.id?{...x,t:n}:x)};await saveCfg()}}
   else if(D.gdel){if(await ask("Xoá quỹ này?","",false)!==null){S.cfg={...S.cfg,goals:S.cfg.goals.filter(x=>x.id!==D.gdel)};await saveCfg()}}
+  else if(D.a==="cats"){readForm();await catSheet()}
   else if(D.a==="login"||D.a==="signup"||D.a==="reset"){await doAuth(D.a);return}
   else if(D.a==="logout"){if(await ask("Đăng xuất khỏi tài khoản này?","",false)!==null)await signOut(auth);return}
   else if(D.a==="ai"){await runAi((($("#ft")&&$("#ft").value)||S.aiText||"").trim());return}
