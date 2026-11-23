@@ -387,7 +387,8 @@ function aiNormalize(arr){
 async function aiParse(text){
   const base="https://www.gstatic.com/firebasejs/12.19.0/";
   const [A,I]=await Promise.all([import(base+"firebase-app.js"),import(base+"firebase-ai.js")]);
-  let app;try{app=A.getApp("ai")}catch(e){app=A.initializeApp(CFG,"ai")}
+  let app;try{app=A.getApp("ai")}catch(e){app=A.initializeApp(CFG,"ai");
+    if(window.APPCHECK_SITE_KEY){try{const AC=await import(base+"firebase-app-check.js");AC.initializeAppCheck(app,{provider:(window.APPCHECK_TYPE==="v3"?new AC.ReCaptchaV3Provider(window.APPCHECK_SITE_KEY):new AC.ReCaptchaEnterpriseProvider(window.APPCHECK_SITE_KEY)),isTokenAutoRefreshEnabled:true})}catch(e2){console.warn("AppCheck",e2)}}}
   const ai=I.getAI(app,{backend:new I.GoogleAIBackend()});
   const P=I.Schema,schema=P.array({items:P.object({properties:{memo:P.string(),amount:P.number(),categoryId:P.number(),type:P.number(),date:P.string()}})});
   let saved=null;try{saved=localStorage.getItem("aiModel")}catch(e){}

@@ -7,3 +7,9 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "1087181486644",
   appId: "1:1087181486644:web:34a581c480a84b3755a861"
 };
+
+// App Check (Fraud Defense / reCAPTCHA Enterprise): dán SITE KEY vào giữa hai dấu ngoặc kép.
+// Để trống nếu chưa làm App Check.
+window.APPCHECK_SITE_KEY = "6LcCsy4uAAAAABtvCj6qmwxqpNSVmqFx2pJoxFc9";
+// "enterprise" = Fraud Defense (khuyên dùng). Chỉ đổi thành "v3" nếu bạn dùng key reCAPTCHA v3 kiểu cũ.
+window.APPCHECK_TYPE = "enterprise";
